@@ -427,8 +427,8 @@ class QueueRunnerWorker(Worker):
 
     chunk_finished = pyqtSignal()
 
-    def __init__(self, exp_list, task_name_list, combo_2d=None, combo1d=None):
-        # super().__init__(exp_list, task_name_list, combo_2d, combo1d)
+    def __init__(self, exp_list, task_name_list, combo_2d=None, combo_1d=None):
+        super().__init__(exp_list, task_name_list, combo_2d, combo_1d)
         self.exp_list = exp_list
         self.task_name_list = task_name_list
 
