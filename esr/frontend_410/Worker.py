@@ -420,3 +420,21 @@ class Worker(QObject):
             print("Error stopping sweep")
             print(e)
             print()
+    
+
+
+class QueueRunnerWorker(Worker):
+
+    chunk_finished = pyqtSignal()
+
+    def __init__(self, exp_list, task_name_list, combo_2d=None, combo1d=None):
+        # super().__init__(exp_list, task_name_list, combo_2d, combo1d)
+        self.exp_list = exp_list
+        self.task_name_list = task_name_list
+
+    def run_qrw(self):
+        for i in range(len(self.exp_list)):
+            self.experiment = self.exp_list[i]
+            self.task_name = self.task_name_list[i]
+            self.run_sweep()
+        self.chunk_finished.emit()
