@@ -1025,7 +1025,10 @@ class ExperimentUI(QMainWindow):
         while self.queue_manager.active_queue_list and exp_count < 3:
             exp_list.append(self.queue_manager.get_next_experiment().experiment)
             exp_count += 1
-        QRW = QueueRunnerWorker(exp_list, ["sweep" for _ in range (len(exp_list))], combo_2d=self.combo_2d, combo_1d=self.combo_1d)
+        try:
+            QRW = QueueRunnerWorker(exp_list, ["sweep" for _ in range (len(exp_list))], combo_2d=self.combo_2d, combo_1d=self.combo_1d)
+        except Exception as e:
+            print(f"Error constructing QRW: {e}")
         print('QRW Initialized')
         QRW.chunk_finished.connect(self.stop_queue)
         QRW.chunk_finished.connect(QRW.deleteLater)
@@ -1305,7 +1308,7 @@ class ExperimentUI(QMainWindow):
 
             queue_item = QueuedExperiment(
                 start_stop_sweep_function = self.toggle_start_stop_sweep_frontend,
-                experiment=new_experiment,
+                experiment = new_experiment,
                 queue_manager=self.queue_manager,
                 last_used_directory=self.last_saved_graph_path
             )
