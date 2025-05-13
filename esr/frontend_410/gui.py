@@ -15,7 +15,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import sys, os
 sys.path.append('../')
-from rfsoc2 import *
+#from rfsoc2 import *
 from time import sleep, time
 from datetime import date, datetime
 import pickle
@@ -1032,6 +1032,12 @@ class ExperimentUI(QMainWindow):
         print('QRW Initialized')
         QRW.chunk_finished.connect(self.stop_queue)
         QRW.chunk_finished.connect(QRW.deleteLater)
+        QRW.live_plot_2D_update_signal.connect(
+            self.current_experiment.sweep_graph_2D.on_live_plot_2D
+        )
+        QRW.live_plot_1D_update_signal.connect(
+            self.current_experiment.sweep_graph_1D.on_live_plot_1D
+        )
         # print("QRW Initialized")
         QRW.run_qrw()
         
