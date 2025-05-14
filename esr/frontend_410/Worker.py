@@ -1,3 +1,4 @@
+
 """
 worker.py
 
@@ -423,18 +424,31 @@ class Worker(QObject):
     
 
 
+# class QueueRunnerWorker(Worker):
+
+#     chunk_finished = pyqtSignal()
+
+#     def __init__(self, exp_list, task_name_list, combo_2d=None, combo_1d=None):
+#         super().__init__(exp_list, task_name_list, combo_2d, combo_1d)
+#         self.exp_list = exp_list
+#         self.task_name_list = task_name_list
+
+#     def run_qrw(self):
+#         for i in range(len(self.exp_list)):
+#             self.experiment = self.exp_list[i]
+#             self.task_name = self.task_name_list[i]
+#             self.run_sweep()
+#         self.chunk_finished.emit()
+
 class QueueRunnerWorker(Worker):
 
     chunk_finished = pyqtSignal()
 
-    def __init__(self, exp_list, task_name_list, combo_2d=None, combo_1d=None):
-        super().__init__(exp_list, task_name_list, combo_2d, combo_1d)
-        self.exp_list = exp_list
-        self.task_name_list = task_name_list
+    def __init__(self, exp, task_name, combo_2d=None, combo_1d=None):
+        super().__init__(exp, task_name, combo_2d, combo_1d)
+        self.experiment = exp
+        self.task_name = task_name
 
     def run_qrw(self):
-        for i in range(len(self.exp_list)):
-            self.experiment = self.exp_list[i]
-            self.task_name = self.task_name_list[i]
-            self.run_sweep()
+        self.run_sweep()
         self.chunk_finished.emit()
