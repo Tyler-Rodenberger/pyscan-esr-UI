@@ -1007,6 +1007,26 @@ class ExperimentUI(QMainWindow):
 
     def stop_queue(self, user_interrupt = False):
         print("Stopping queue...")
+        # print("QRW Initialized")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        name = self.queue_manager.active_experiment.display_name or "unknown"
+        location = self.queue_manager.active_experiment.parameters_dict["save_directory"]
+        print(f"Accessed timestamp: {timestamp}, name: {name}, and location: {location}")
+        self.queue_manager.set_current_running(self.queue_manager.active_experiment.display_name)
+        if self.queue_manager.active_experiment.parameters_dict["save_graph_output"]:
+            fig1 = self.current_experiment.sweep_graph_2D.figure
+            if self.queue_manager.active_experiment.experiment.type == "Pulse Frequency Sweep":
+                fig2 = self.current_experiment.sweep_graph_1D.figure
+            if self.queue_manager.active_experiment.parameters_dict["save_directory"]:
+                filename1 = os.path.join(location, f"{self.queue_manager.active_experiment.display_name}_2D.png")
+                fig1.savefig(filename1)
+                if self.queue_manager.active_experiment.experiment.type == "Pulse Frequency Sweep":
+                    filename2 = os.path.join(location, f"{self.queue_manager.active_experiment.display_name}_1D.png")
+                    fig2.savefig(filename2)
+                self.last_saved_path_label.setText(self.queue_manager.active_experiment.parameters_dict["save_directory"])
+                location = str(location + self.queue_manager.active_experiment.display_name)
+        self.queue_manager.history.append((timestamp, name, location))
+
         if not user_interrupt and self.queue_manager.active_queue_list:
             self.run_queue()
         else:
@@ -1017,29 +1037,94 @@ class ExperimentUI(QMainWindow):
             self.read_unprocessed_btn.setEnabled(True)
             self.sweep_start_stop_btn.setEnabled(True)
         
+    # def run_queue(self, batch_size=1):
+    #     print("Starting queue...")
+    #     self.queue_manager.queue_running = True
+    #     exp_list = []
+    #     exp_count = 0
+    #     self.set_parameters_and_initialize_btn.setEnabled(False)
+    #     self.read_processed_btn.setEnabled(False)
+    #     self.read_unprocessed_btn.setEnabled(False)
+    #     self.sweep_start_stop_btn.setEnabled(False)
+
+    #     self.qd_experiments = []
+    #     while self.queue_manager.active_queue_list and exp_count < batch_size:
+    #         qd_experiment = self.queue_manager.get_next_experiment()
+    #         self.qd_experiments.append(qd_experiment)
+    #         exp_list.append(qd_experiment.experiment)
+    #         exp_count += 1
+    #     try:
+    #         self.QRW = QueueRunnerWorker(exp_list, ["sweep" for _ in range (len(exp_list))], combo_2d=self.combo_2d, combo_1d=self.combo_1d)
+    #         self.queue_worker_thread = QThread(self)
+    #     except Exception as e:
+    #         print(f"Error constructing QRW: {e}")
+    #     print('QRW Initialized')
+
+    #     self.QRW.moveToThread(self.queue_worker_thread)
+    #     print("here")
+    #     self.queue_worker_thread.started.connect(self.QRW.run_qrw)
+    #     print("here_2")
+        
+    #     self.QRW.chunk_finished.connect(self.stop_queue)
+    #     print("here_3")
+    #     self.QRW.chunk_finished.connect(self.QRW.deleteLater)
+    #     print("here_4")
+    #     self.QRW.chunk_finished.connect(self.queue_worker_thread.quit)
+    #     print("here 5")
+
+    #     self.QRW.live_plot_2D_update_signal.connect(
+    #         self.qd_experiments[0].experiment.sweep_graph_2D.on_live_plot_2D
+    #     )
+    #     self.QRW.live_plot_1D_update_signal.connect(
+    #         self.qd_experiments[0].experiment.sweep_graph_1D.on_live_plot_1D
+    #     )
+    #     print("Here 6")
+    #     self.queue_worker_thread.start()
+
     def run_queue(self):
+        #Start queue manager
         print("Starting queue...")
         self.queue_manager.queue_running = True
-        exp_list = []
-        exp_count = 0
-        while self.queue_manager.active_queue_list and exp_count < 3:
-            exp_list.append(self.queue_manager.get_next_experiment().experiment)
-            exp_count += 1
-        try:
-            QRW = QueueRunnerWorker(exp_list, ["sweep" for _ in range (len(exp_list))], combo_2d=self.combo_2d, combo_1d=self.combo_1d)
-        except Exception as e:
-            print(f"Error constructing QRW: {e}")
-        print('QRW Initialized')
-        QRW.chunk_finished.connect(self.stop_queue)
-        QRW.chunk_finished.connect(QRW.deleteLater)
-        QRW.live_plot_2D_update_signal.connect(
+
+        #Gray out menu buttons
+        self.set_parameters_and_initialize_btn.setEnabled(False)
+        self.read_processed_btn.setEnabled(False)
+        self.read_unprocessed_btn.setEnabled(False)
+        self.sweep_start_stop_btn.setEnabled(False)
+
+        #Get experiment from queue and create thread and worker objects
+        exp = self.queue_manager.get_next_experiment()
+        self.queue_manager.active_experiment = exp
+        self.initialize_from_queue(exp)
+        self.QRW = QueueRunnerWorker(exp.experiment, "sweep", combo_2d=self.combo_2d, combo_1d=self.combo_1d)
+        print('QRW Created')
+        self.queue_worker_thread = QThread(self)
+        print('QWT Created')
+
+        #Connect thread and worker events
+        self.QRW.moveToThread(self.queue_worker_thread)
+
+        self.queue_worker_thread.started.connect(self.QRW.run_qrw)
+        
+        self.QRW.chunk_finished.connect(self.queue_worker_thread.quit)
+        self.QRW.chunk_finished.connect(self.QRW.deleteLater)
+        self.QRW.chunk_finished.connect(self.stop_queue)
+
+        self.QRW.live_plot_2D_update_signal.connect(
             self.current_experiment.sweep_graph_2D.on_live_plot_2D
         )
-        QRW.live_plot_1D_update_signal.connect(
-            self.current_experiment.sweep_graph_1D.on_live_plot_1D
-        )
-        # print("QRW Initialized")
-        QRW.run_qrw()
+
+        if exp.experiment.type == "Pulse Frequency Sweep":
+            self.QRW.live_plot_1D_update_signal.connect(
+                self.current_experiment.sweep_graph_1D.on_live_plot_1D
+            )
+        self.QRW.updateStatus.connect(self.on_worker_status_update)
+
+        #Start thread
+        self.queue_worker_thread.start()
+
+
+
         
         # while self.queue_manager.active_queue_list:
         #     print("Getting next experiment")
@@ -1310,11 +1395,12 @@ class ExperimentUI(QMainWindow):
     
     def add_to_queue(self):
         try:
+            self.initialize_from_settings_panel()
             new_experiment = ExperimentType(self.current_experiment.type)
 
             queue_item = QueuedExperiment(
                 start_stop_sweep_function = self.toggle_start_stop_sweep_frontend,
-                experiment = new_experiment,
+                experiment = self.current_experiment,
                 queue_manager=self.queue_manager,
                 last_used_directory=self.last_saved_graph_path
             )
@@ -1368,8 +1454,8 @@ class QueueManager(QWidget):
         active_queue_bar.addWidget(self.toggle_run_button)
 
         self.expanded_layout.addLayout(active_queue_bar)
-
         self.history_button.clicked.connect(self.show_history)
+        
         self.clear_button.clicked.connect(self.clear_queue)
 
         self.active_queue_list = QListWidget()
@@ -1423,22 +1509,19 @@ class QueueManager(QWidget):
         print(f"Adding queued experiment: {queued_experiment.parameters_dict['display_name']} to working queue...")
         self.working_queue_list.addItem(queued_experiment)
         self.working_queue_list.setItemWidget(queued_experiment, queued_experiment.widget)
-
-    def mark_completed(self):
-        """Adds experiment to history and removes it from the active experiment slot."""
-        print(f"Experiment {self.active_experiment.display_name} has been completed")
-        
-        if self.active_experiment:
-            self.history.append(self.active_experiment)
-            self.active_experiment = None
     
     def show_history(self):
         """""""""
         Creates a new panel that shows Queue history in a scrollable pop-up
         """
-        if not self.history_log:
-            QMessageBox.information(self, "History", "No experiments have been run yet.")
-            return
+        try:
+            if not self.history:
+                QMessageBox.information(self, "History", "No experiments have been run yet.")
+                return
+        except Exception as e:
+            print(f"Error accessing history: {e}")
+
+        
 
         dialog = QDialog(self)
         dialog.setWindowTitle("Experiment History")
@@ -1450,7 +1533,7 @@ class QueueManager(QWidget):
         history_text.setReadOnly(True)
 
         log_entries = []
-        for timestamp, name, location in self.history_log:
+        for timestamp, name, location in self.history:
             log_entries.append(f"{timestamp}\nExperiment: {name}\nSaved to: {location}\n\n")
 
         history_text.setText(''.join(log_entries))
